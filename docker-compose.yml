@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    command: gunicorn credit_approval.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: credit_approval.settings
+      POSTGRES_DB: credit_approval
+      POSTGRES_USER: credit_user
+      POSTGRES_PASSWORD: credit_password
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      INITIAL_DATA_DIR: /data
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+      - ./data:/data
+
+  worker:
+    build: .
+    command: celery -A credit_approval worker -l info
+    environment:
+      DJANGO_SETTINGS_MODULE: credit_approval.settings
+      POSTGRES_DB: credit_approval
+      POSTGRES_USER: credit_user
+      POSTGRES_PASSWORD: credit_password
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      INITIAL_DATA_DIR: /data
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+      - ./data:/data
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: credit_approval
+      POSTGRES_USER: credit_user
+      POSTGRES_PASSWORD: credit_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+
